@@ -1,22 +1,19 @@
-package deduper
+package main
 
 import (
 	"path/filepath"
-
-	"../fileIndex"
-	"../fileMover"
 )
 
 // Deduper identifies and moves duplicate files.
 type Deduper struct {
-	fileIndex               *fileIndex.FileIndex
+	fileIndex               *FileIndex
 	duplicateDestinationDir string
 	originalBaseDir         string
-	duplicateFileMover      *fileMover.FileMover
+	duplicateFileMover      *FileMover
 }
 
-// New creates a default instance of FileIndex.
-func New(fileIndex *fileIndex.FileIndex, duplicateDestinationDir string, originalBaseDir string, duplicateFileMover *fileMover.FileMover) *Deduper {
+// NewDeduper creates a default instance of FileIndex.
+func NewDeduper(fileIndex *FileIndex, duplicateDestinationDir string, originalBaseDir string, duplicateFileMover *FileMover) *Deduper {
 	result := new(Deduper)
 	result.fileIndex = fileIndex
 	result.duplicateDestinationDir = duplicateDestinationDir

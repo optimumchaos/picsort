@@ -4,11 +4,6 @@ import (
 	"flag"
 	"log"
 	"os"
-
-	"./deduper"
-	"./fileIndex"
-	"./fileMover"
-	"./picSorter"
 )
 
 const flagDedupeLazy = "lazy"
@@ -36,10 +31,10 @@ func main() {
 		log.Println("[INFO]", "Dry run only")
 	}
 
-	fileMover := fileMover.New(*isDryrun)
-	fileIndex := fileIndex.New()
-	deduper := deduper.New(fileIndex, *dedupeDestDir, *incomingDir, fileMover)
-	sorter := picSorter.New(deduper, fileMover, *libDir)
+	fileMover := NewFileMover(*isDryrun)
+	fileIndex := NewFileIndex()
+	deduper := NewDeduper(fileIndex, *dedupeDestDir, *incomingDir, fileMover)
+	sorter := NewPicSorter(deduper, fileMover, *libDir)
 
 	if *dedupe == flagDedupeEager {
 		fileIndex.BuildIndexForDirectory(*libDir)

@@ -1,4 +1,4 @@
-package fileMover
+package main
 
 import (
 	"errors"
@@ -15,8 +15,8 @@ type FileMover struct {
 	isDryRun bool
 }
 
-// New creates a new FileMover with given dryrun state.
-func New(isDryRun bool) *FileMover {
+// NewFileMover creates a new FileMover with given dryrun state.
+func NewFileMover(isDryRun bool) *FileMover {
 	result := new(FileMover)
 	result.isDryRun = isDryRun
 	return result

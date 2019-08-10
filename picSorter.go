@@ -1,24 +1,22 @@
-package picSorter
+package main
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 
-	"../deduper"
-	"../fileMover"
 	"github.com/rwcarlsen/goexif/exif"
 )
 
 // PicSorter sorts pictures into a library, while extracting incoming duplicates.
 type PicSorter struct {
-	deduper   *deduper.Deduper
-	fileMover *fileMover.FileMover
+	deduper   *Deduper
+	fileMover *FileMover
 	libDir    string
 }
 
-// New creates a new PicSorter with the given Deduper and FileMover.
-func New(deduper *deduper.Deduper, fileMover *fileMover.FileMover, libDir string) *PicSorter {
+// NewPicSorter creates a new PicSorter with the given Deduper and FileMover.
+func NewPicSorter(deduper *Deduper, fileMover *FileMover, libDir string) *PicSorter {
 	result := new(PicSorter)
 	result.deduper = deduper
 	result.fileMover = fileMover

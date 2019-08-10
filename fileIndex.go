@@ -1,4 +1,4 @@
-package fileIndex
+package main
 
 import (
 	"crypto/md5"
@@ -15,8 +15,8 @@ type FileIndex struct {
 	hashedDirectories map[string]bool
 }
 
-// New creates a default instance of FileIndex.
-func New() *FileIndex {
+// NewFileIndex creates a default instance of FileIndex.
+func NewFileIndex() *FileIndex {
 	result := new(FileIndex)
 	result.hashToPath = make(map[string]string)
 	result.hashedDirectories = make(map[string]bool)

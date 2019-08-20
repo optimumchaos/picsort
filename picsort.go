@@ -2,14 +2,18 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 )
 
+const version = "0.01"
 const flagDedupeLazy = "lazy"
 const flagDedupeEager = "eager"
 
 func main() {
+	fmt.Println("picsort", version)
+
 	libDir := flag.String("libdir", "", "The directory containing your photo library (destination for sort).")
 	incomingDir := flag.String("incomingdir", "", "The directory with incoming photos (unsorted).")
 	dedupe := flag.String("dedupe", flagDedupeLazy, "How to dedupe: "+flagDedupeLazy+" = dedupe lazily per destination directory, "+flagDedupeEager+" = dedupe eagerly across entire library.")

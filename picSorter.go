@@ -31,6 +31,13 @@ func (sorter PicSorter) Sort(dirPath string) error {
 			return err
 		}
 		if !info.IsDir() {
+			metadata, err := NewGooglePhotoMetadata(path)
+			if err != nil {
+				log.Println("[DEBUG]", "No recognizable Google Photos metadata for", path)
+			} else if metadata.IsTrashed {
+				log.Println("[DEBUG]", path, "Skipping: trashed")
+				return nil
+			}
 			newPath, err := sorter.deriveNewPathFromFileMetadata(path)
 			if err != nil {
 				log.Println("[DEBUG]", path, "Skipping:", err)

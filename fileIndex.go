@@ -56,10 +56,10 @@ func (fileIndex FileIndex) BuildIndexForDirectory(dirPath string) error {
 // AddFileToIndex adds the specified file to the index.
 func (fileIndex FileIndex) AddFileToIndex(filePath string) error {
 	hash, err := deriveHashFromFile(filePath)
-	log.Println("[DEBUG]", "Adding to index:", hash, filePath)
 	if err != nil {
 		return err
 	}
+	log.Println("[DEBUG]", "Adding to index:", hash, filePath)
 	fileIndex.hashToPath[hash] = filePath
 	return nil
 }

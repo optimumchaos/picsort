@@ -1,9 +1,5 @@
 package main
 
-import (
-	"path/filepath"
-)
-
 // Deduper identifies and moves duplicate files.
 type Deduper struct {
 	fileIndex               *FileIndex
@@ -37,22 +33,11 @@ func (deduper Deduper) AddFileToIndex(filePath string) error {
 	return deduper.fileIndex.AddFileToIndex(filePath)
 }
 
-// DedupeFile checks the index for duplicates of the specified file, and moves it to the dedupe dir if needed.
-func (deduper Deduper) DedupeFile(filePath string) (bool, error) {
+// IsDuplicate determines whether the specified file is a duplicate.
+func (deduper Deduper) IsDuplicate(filePath string) (bool, error) {
 	isPresent, err := deduper.fileIndex.IsFilePresent(filePath)
 	if err != nil {
 		return false, err
-	}
-	if isPresent {
-		relPath, err := filepath.Rel(deduper.originalBaseDir, filePath)
-		if err != nil {
-			return false, err
-		}
-		destPath := filepath.Join(deduper.duplicateDestinationDir, relPath)
-		_, err = deduper.duplicateFileMover.MoveFileWithRename(filePath, destPath)
-		if err != nil {
-			return false, err
-		}
 	}
 	return isPresent, nil
 }

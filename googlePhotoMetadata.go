@@ -12,18 +12,19 @@ type GooglePhotoMetadata struct {
 }
 
 // NewGooglePhotoMetadata creates a new metadata instance from the given picture filename.  The convention is <picname>.json
-func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, error) {
+func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, error) {
 	result := GooglePhotoMetadata{}
-	file, err := ioutil.ReadFile(picFilePath + ".json")
+	metadataFilePath := picFilePath + ".json"
+	file, err := ioutil.ReadFile(metadataFilePath)
 	if err != nil {
-		return nil, err
+		return nil, metadataFilePath, err
 	}
 	err = json.Unmarshal(file, &result)
 	if err != nil {
-		return nil, err
+		return nil, metadataFilePath, err
 	}
-	log.Println("[DEBUG]", "IsTrashed:", result.IsTrashed)
-	return &result, nil
+	log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
+	return &result, metadataFilePath, nil
 }
 
 // example: IMG_3560.JPG.json (latitude and longitude sanitized for the public)

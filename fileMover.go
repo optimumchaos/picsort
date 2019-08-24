@@ -44,6 +44,20 @@ func (fileMover FileMover) MoveFileWithRename(sourcePath string, destPath string
 	return destPath, nil
 }
 
+// MoveFileWithPreservedPath moves the specified source file (which must have the given root) to the specified destination root.  Returns the destination path.
+func (fileMover FileMover) MoveFileWithPreservedPath(sourcePath string, sourceRoot string, destRoot string) (string, error) {
+	relPath, err := filepath.Rel(sourceRoot, sourcePath)
+	if err != nil {
+		return "", err
+	}
+	destPath := filepath.Join(destRoot, relPath)
+	_, err = fileMover.MoveFileWithRename(sourcePath, destPath)
+	if err != nil {
+		return "", err
+	}
+	return destPath, nil
+}
+
 // DeleteEmptyDirectories deletes any empty directories that can be deleted, rooted at the specified directory.
 func (fileMover FileMover) DeleteEmptyDirectories(dirPath string) error {
 	if !fileMover.isDryRun {

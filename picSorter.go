@@ -1,9 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
 )
@@ -16,6 +19,7 @@ type PicSorter struct {
 	duplicateDir   string
 	trashedDir     string
 	unsupportedDir string
+	local          *time.Location
 }
 
 // NewPicSorter creates a new PicSorter with the given Deduper and FileMover.
@@ -27,6 +31,9 @@ func NewPicSorter(deduper *Deduper, fileMover *FileMover, libDir string, duplica
 	result.duplicateDir = duplicateDir
 	result.trashedDir = trashedDir
 	result.unsupportedDir = unsupportedDir
+	// Workaround to get "local" location. "Time.Local()" does not pick the right offset for DST state.
+	zoneName, offset := time.Now().Zone()
+	result.local = time.FixedZone(zoneName, offset)
 	return result
 }
 
@@ -39,18 +46,25 @@ func (sorter PicSorter) Sort(dirPath string) error {
 			return err
 		}
 		if !info.IsDir() {
-			isTrashed, err := sorter.checkAndHandleTrashed(path, dirPath)
-			if err != nil {
-				log.Println("[WARN]", path, "Failed to check/handle trashed:", err)
-				return nil
-			} else if isTrashed {
+			googleMetadata := sorter.getGooglePhotoMetadata(path)
+			if googleMetadata != nil && googleMetadata.IsTrashed {
+				err = sorter.handleTrashed(path, dirPath)
+				if err != nil {
+					log.Println("[WARN]", path, "Failed to check/handle trashed:", err)
+				}
 				return nil
 			}
 
 			newPath, err := sorter.deriveNewPathFromFileMetadata(path)
+			fmt.Println("new path from metadata:", newPath, err)
 			if err != nil {
-				unsupportedPaths = append(unsupportedPaths, path)
-				return nil
+				if googleMetadata != nil {
+					newPath, err = sorter.deriveNewPathFromGoogleMetadata(path, googleMetadata)
+				}
+				if err != nil {
+					unsupportedPaths = append(unsupportedPaths, path)
+					return nil
+				}
 			}
 
 			isDuplicate, err := sorter.checkAndHandleDupes(path, dirPath, newPath)
@@ -88,20 +102,21 @@ func (sorter PicSorter) Sort(dirPath string) error {
 	return err
 }
 
-func (sorter PicSorter) checkAndHandleTrashed(filePath string, fileRoot string) (bool, error) {
+func (sorter PicSorter) getGooglePhotoMetadata(filePath string) *GooglePhotoMetadata {
 	metadata, _, err := NewGooglePhotoMetadata(filePath)
 	if err != nil {
 		// probably no metadata
-		return false, nil
-	} else if metadata.IsTrashed {
-		_, err := sorter.fileMover.MoveFileWithPreservedPath(filePath, fileRoot, sorter.trashedDir)
-		if err != nil {
-			return false, err
-		}
-		// This seems to cause problems for the file-walk:
-		//sorter.fileMover.MoveFileWithPreservedPath(metadataFilePath, fileRoot, sorter.trashedDir)
+		return nil
 	}
-	return metadata.IsTrashed, nil
+	return metadata
+}
+
+func (sorter PicSorter) handleTrashed(filePath string, fileRoot string) error {
+	_, err := sorter.fileMover.MoveFileWithPreservedPath(filePath, fileRoot, sorter.trashedDir)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sorter PicSorter) checkAndHandleDupes(filePath string, fileRoot string, newPath string) (bool, error) {
@@ -138,11 +153,28 @@ func (sorter PicSorter) deriveNewPathFromFileMetadata(filePath string) (string, 
 		return "", err
 	}
 
+	result := sorter.deriveNewPathFromTimestamp(filePath, timestamp)
+	return result, nil
+}
+
+func (sorter PicSorter) deriveNewPathFromGoogleMetadata(filePath string, metadata *GooglePhotoMetadata) (string, error) {
+	if metadata.PhotoTakenTime.IsZero() {
+		return "", errors.New("no 'PhotoTakenTime' present in Google metadata")
+	}
+
+	result := sorter.deriveNewPathFromTimestamp(filePath, metadata.PhotoTakenTime)
+	return result, nil
+}
+
+func (sorter PicSorter) deriveNewPathFromTimestamp(filePath string, timestamp time.Time) string {
+	localTimestamp := timestamp.In(sorter.local)
 	filename := filepath.Base(filePath)
-	yeardir := timestamp.Format("2006")
-	datedir := timestamp.Format("2006-01-02")
-	fileprefix := timestamp.Format("2006-01-02_15-04-05_")
+	yeardir := localTimestamp.Format("2006")
+	datedir := localTimestamp.Format("2006-01-02")
+	fileprefix := localTimestamp.Format("2006-01-02_15-04-05_")
 
 	result := filepath.Join(sorter.libDir, yeardir, datedir, fileprefix+filename)
-	return result, nil
+	log.Println("[DEBUG] Derived path", result, "from timestamp", timestamp.String(), "localized to", localTimestamp.String())
+
+	return result
 }

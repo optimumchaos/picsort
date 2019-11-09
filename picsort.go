@@ -1,14 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
-const version = "0.02"
+const version = "0.03"
 
 const flagDedupeLazy = "lazy"
 const flagDedupeEager = "eager"
@@ -25,6 +27,7 @@ func main() {
 	dedupe := flag.String("dedupe", flagDedupeLazy, "How to dedupe: "+flagDedupeLazy+" = dedupe lazily per destination directory, "+flagDedupeEager+" = dedupe eagerly across entire library.")
 	rejectDir := flag.String("rejectdir", "", "The root directory to which rejected files will be moved.  Picsort will create subdirectories for duplicates, trashed, and files missing metadata.")
 	isDryrun := flag.Bool("dryrun", false, "Whether to do a dry run.")
+	undoScriptFilePath := flag.String("undofile", "undo.sh", "The name of a file in which to write undo commands.")
 	flag.Parse()
 	if len(*libDir) <= 0 ||
 		len(*incomingDir) <= 0 ||
@@ -41,11 +44,12 @@ func main() {
 		log.Println("[INFO]", "Dry run only")
 	}
 
+	tempUndoScriptFilePath := *undoScriptFilePath + ".temp"
 	dedupeDir := filepath.Join(*rejectDir, dedupeSubDir)
 	trashedDir := filepath.Join(*rejectDir, trashedSubDir)
 	unsupportedDir := filepath.Join(*rejectDir, unsupportedSubDir)
 
-	fileMover := NewFileMover(*isDryrun)
+	fileMover := NewFileMover(*isDryrun, tempUndoScriptFilePath)
 	fileIndex := NewFileIndex()
 	deduper := NewDeduper(fileIndex, dedupeDir, *incomingDir, fileMover)
 	sorter := NewPicSorter(deduper, fileMover, *libDir, dedupeDir, trashedDir, unsupportedDir)
@@ -54,8 +58,54 @@ func main() {
 		fileIndex.BuildIndexForDirectory(*libDir)
 	}
 
+	initializeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
 	err := sorter.Sort(*incomingDir)
+	err2 := writeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
 	if err != nil {
 		log.Fatalln("[FATAL]", "Failed to sort incoming pictures in", *incomingDir, ":", err)
 	}
+	if err2 != nil {
+		log.Fatalln("[FATAL]", "Failed to write undo file:", err2)
+	} else if !*isDryrun {
+		log.Println("[INFO]", "To reinstate rejected files, execute", *undoScriptFilePath)
+	}
+}
+
+func initializeUndoFile(tempUndoFilePath string, undoFilePath string) {
+	os.Remove(tempUndoFilePath)
+	os.Chmod(undoFilePath, 0644)
+	os.Rename(undoFilePath, undoFilePath+"."+time.Now().Format(time.RFC3339))
+}
+
+func writeUndoFile(tempUndoFilePath string, undoFilePath string) error {
+	tempFile, err := os.Open(tempUndoFilePath)
+	if err != nil {
+		return err
+	}
+	defer tempFile.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(tempFile)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	file, err := os.OpenFile(undoFilePath, os.O_WRONLY|os.O_CREATE, 0744)
+	if err != nil {
+		return err
+	}
+	w := bufio.NewWriter(file)
+	fmt.Fprintln(w, "#!/bin/sh")
+	lineCount := len(lines)
+	for i := lineCount - 1; i >= 0; i-- {
+		fmt.Fprintln(w, lines[i])
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
+
+	tempFile.Close()
+	os.Remove(tempUndoFilePath)
+
+	return nil
 }

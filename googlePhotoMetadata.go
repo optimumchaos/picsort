@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"strconv"
+	"time"
 )
 
 // GooglePhotoMetadata represents the metadata stored in a Google Photos JSON file.
 type GooglePhotoMetadata struct {
-	IsTrashed bool `json:"trashed"`
+	IsTrashed      bool //`json:"trashed"`
+	PhotoTakenTime time.Time
 }
 
 // NewGooglePhotoMetadata creates a new metadata instance from the given picture filename.  The convention is <picname>.json
@@ -25,6 +28,28 @@ func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, e
 	}
 	log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
 	return &result, metadataFilePath, nil
+}
+
+// UnmarshalJSON unmarshalls the Google Metadata format into the values of interest.
+func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
+
+	var f interface{}
+	json.Unmarshal(b, &f)
+
+	allProps := f.(map[string]interface{})
+	photoTakenTimeMap := allProps["photoTakenTime"]
+	photoTakenTimeProps := photoTakenTimeMap.(map[string]interface{})
+
+	metadata.IsTrashed = allProps["trashed"].(bool)
+	unixTimeString := photoTakenTimeProps["timestamp"].(string)
+	if unixTimeString != "" {
+		unixTimeInt64, err := strconv.ParseInt(unixTimeString, 10, 64)
+		if err == nil {
+			metadata.PhotoTakenTime = time.Unix(unixTimeInt64, 0)
+		}
+	}
+
+	return nil
 }
 
 // example: IMG_3560.JPG.json (latitude and longitude sanitized for the public)

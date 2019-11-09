@@ -12,30 +12,37 @@ import (
 
 // FileMover moves files, with capability of "dry run".
 type FileMover struct {
-	isDryRun bool
+	isDryRun           bool
+	undoScriptFilePath string
 }
 
 // NewFileMover creates a new FileMover with given dryrun state.
-func NewFileMover(isDryRun bool) *FileMover {
+func NewFileMover(isDryRun bool, undoScriptFilePath string) *FileMover {
 	result := new(FileMover)
 	result.isDryRun = isDryRun
+	result.undoScriptFilePath = undoScriptFilePath
 	return result
 }
 
 // MoveFileWithRename moves the specified file to the specified path creating the directory if needed, and renaming the file if needed to avoid collission.
 func (fileMover FileMover) MoveFileWithRename(sourcePath string, destPath string) (string, error) {
 	if !fileMover.isDryRun {
-		err := os.MkdirAll(filepath.Dir(destPath), os.ModePerm)
-		if err != nil {
+		destDir := filepath.Dir(destPath)
+		if err := fileMover.writeUndoCommandForDirCreate(destDir); err != nil {
+			return "", err
+		}
+		if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 			return "", err
 		}
 		destPath, err := getNonCollidingPath(destPath)
-		log.Println("[INFO]", "Moving file", sourcePath, "to", destPath)
 		if err != nil {
 			return "", err
 		}
-		err = os.Rename(sourcePath, destPath)
-		if err != nil {
+		log.Println("[INFO]", "Moving file", sourcePath, "to", destPath)
+		if err := fileMover.writeUndoCommandForFileMove(sourcePath, destPath); err != nil {
+			return "", err
+		}
+		if err := os.Rename(sourcePath, destPath); err != nil {
 			return "", err
 		}
 	} else {
@@ -51,8 +58,7 @@ func (fileMover FileMover) MoveFileWithPreservedPath(sourcePath string, sourceRo
 		return "", err
 	}
 	destPath := filepath.Join(destRoot, relPath)
-	_, err = fileMover.MoveFileWithRename(sourcePath, destPath)
-	if err != nil {
+	if _, err = fileMover.MoveFileWithRename(sourcePath, destPath); err != nil {
 		return "", err
 	}
 	return destPath, nil
@@ -75,9 +81,36 @@ func (fileMover FileMover) DeleteEmptyDirectories(dirPath string) error {
 			}
 		}
 		log.Println("[INFO]", "Attempting to delete directory ", dirPath)
+		if err := fileMover.writeUndoCommandForDirDelete(dirPath); err != nil {
+			return err
+		}
 		os.Remove(dirPath)
 	} else {
 		log.Println("[INFO]", "Dryrun deleting directory", dirPath)
+	}
+	return nil
+}
+
+func (fileMover FileMover) writeUndoCommandForFileMove(sourceFilePath string, destFilePath string) error {
+	return fileMover.writeUndoCommand("rsync -avh --progress --remove-source-files \"" + destFilePath + "\" \"" + sourceFilePath + "\"")
+}
+
+func (fileMover FileMover) writeUndoCommandForDirDelete(dirPath string) error {
+	return fileMover.writeUndoCommand("mkdir \"" + dirPath + "\"")
+}
+
+func (fileMover FileMover) writeUndoCommandForDirCreate(dirPath string) error {
+	return fileMover.writeUndoCommand("rmdir \"" + dirPath + "\"")
+}
+
+func (fileMover FileMover) writeUndoCommand(undoCommand string) error {
+	f, err := os.OpenFile(fileMover.undoScriptFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0744)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(undoCommand + "\n"); err != nil {
+		return err
 	}
 	return nil
 }
@@ -93,7 +126,7 @@ func getNonCollidingPath(path string) (string, error) {
 		_, err = os.Stat(resultPath)
 	}
 	if i > 10 {
-		return "", errors.New("Failed to de-collide in " + strconv.Itoa(i) + " tries.")
+		return "", errors.New("failed to de-collide in " + strconv.Itoa(i) + " tries")
 	}
 	return resultPath, nil
 }

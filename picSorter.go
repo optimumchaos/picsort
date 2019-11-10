@@ -60,7 +60,12 @@ func (sorter PicSorter) Sort(dirPath string) error {
 					newPath, err = sorter.deriveNewPathFromGoogleMetadata(path, googleMetadata)
 				}
 				if err != nil {
-					unsupportedPaths = append(unsupportedPaths, path)
+					// The file is unsupported.  Nevertheless, check for duplicates.
+					// This is realy only useful with eager deduping, but it could save us from having to care about why the file is unsupported.
+					isDuplicate, _ := sorter.checkAndHandleIndexedDupes(path, dirPath)
+					if !isDuplicate {
+						unsupportedPaths = append(unsupportedPaths, path)
+					}
 					return nil
 				}
 			}
@@ -123,6 +128,10 @@ func (sorter PicSorter) checkAndHandleDupes(filePath string, fileRoot string, ne
 	if err != nil {
 		return false, err
 	}
+	return sorter.checkAndHandleIndexedDupes(filePath, fileRoot)
+}
+
+func (sorter PicSorter) checkAndHandleIndexedDupes(filePath string, fileRoot string) (bool, error) {
 	isDuplicate, err := sorter.deduper.IsDuplicate(filePath)
 	if err != nil {
 		return false, err

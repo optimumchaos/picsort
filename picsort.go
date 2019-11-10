@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const version = "0.03"
+const version = "0.04"
 
 const flagDedupeLazy = "lazy"
 const flagDedupeEager = "eager"
@@ -58,16 +58,23 @@ func main() {
 		fileIndex.BuildIndexForDirectory(*libDir)
 	}
 
-	initializeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
-	err := sorter.Sort(*incomingDir)
-	err2 := writeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
-	if err != nil {
-		log.Fatalln("[FATAL]", "Failed to sort incoming pictures in", *incomingDir, ":", err)
+	if !*isDryrun {
+		initializeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
 	}
-	if err2 != nil {
-		log.Fatalln("[FATAL]", "Failed to write undo file:", err2)
-	} else if !*isDryrun {
-		log.Println("[INFO]", "To reinstate rejected files, execute", *undoScriptFilePath)
+	sortErr := sorter.Sort(*incomingDir)
+	var undoFileErr error
+	if !*isDryrun {
+		undoFileErr = writeUndoFile(tempUndoScriptFilePath, *undoScriptFilePath)
+	}
+	if sortErr != nil {
+		log.Fatalln("[FATAL]", "Failed to sort incoming pictures in", *incomingDir, ":", sortErr)
+	}
+	if !*isDryrun {
+		if undoFileErr != nil {
+			log.Fatalln("[FATAL]", "Failed to write undo file:", undoFileErr)
+		} else {
+			log.Println("[INFO]", "To reinstate rejected files, execute", *undoScriptFilePath)
+		}
 	}
 }
 

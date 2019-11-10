@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -56,7 +55,6 @@ func (sorter PicSorter) Sort(dirPath string) error {
 			}
 
 			newPath, err := sorter.deriveNewPathFromFileMetadata(path)
-			fmt.Println("new path from metadata:", newPath, err)
 			if err != nil {
 				if googleMetadata != nil {
 					newPath, err = sorter.deriveNewPathFromGoogleMetadata(path, googleMetadata)

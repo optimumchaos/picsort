@@ -10,7 +10,7 @@ import (
 
 // GooglePhotoMetadata represents the metadata stored in a Google Photos JSON file.
 type GooglePhotoMetadata struct {
-	IsTrashed      bool //`json:"trashed"`
+	IsTrashed      bool
 	PhotoTakenTime time.Time
 }
 
@@ -38,15 +38,20 @@ func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
 
 	allProps := f.(map[string]interface{})
 	photoTakenTimeMap := allProps["photoTakenTime"]
-	photoTakenTimeProps := photoTakenTimeMap.(map[string]interface{})
-
-	metadata.IsTrashed = allProps["trashed"].(bool)
-	unixTimeString := photoTakenTimeProps["timestamp"].(string)
-	if unixTimeString != "" {
-		unixTimeInt64, err := strconv.ParseInt(unixTimeString, 10, 64)
-		if err == nil {
-			metadata.PhotoTakenTime = time.Unix(unixTimeInt64, 0)
+	if photoTakenTimeMap != nil {
+		photoTakenTimeProps := photoTakenTimeMap.(map[string]interface{})
+		unixTimeString := photoTakenTimeProps["timestamp"].(string)
+		if unixTimeString != "" {
+			unixTimeInt64, err := strconv.ParseInt(unixTimeString, 10, 64)
+			if err == nil {
+				metadata.PhotoTakenTime = time.Unix(unixTimeInt64, 0)
+			}
 		}
+	}
+
+	isTrashed := allProps["trashed"]
+	if isTrashed != nil {
+		metadata.IsTrashed = isTrashed.(bool)
 	}
 
 	return nil

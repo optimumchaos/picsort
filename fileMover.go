@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -42,7 +43,9 @@ func (fileMover FileMover) MoveFileWithRename(sourcePath string, destPath string
 		if err := fileMover.writeUndoCommandForFileMove(sourcePath, destPath); err != nil {
 			return "", err
 		}
-		if err := os.Rename(sourcePath, destPath); err != nil {
+		// I frequently get "invalid cross-device link" with os.Rename even on same partition.
+		//if err := os.Rename(sourcePath, destPath); err != nil {
+		if err := fileMover.moveFile(sourcePath, destPath); err != nil {
 			return "", err
 		}
 	} else {
@@ -89,6 +92,11 @@ func (fileMover FileMover) DeleteEmptyDirectories(dirPath string) error {
 		log.Println("[INFO]", "Dryrun deleting directory", dirPath)
 	}
 	return nil
+}
+
+func (fileMover FileMover) moveFile(sourceFilePath string, destFilePath string) error {
+	_, err := exec.Command("rsync", "-a", "--remove-source-files", sourceFilePath, destFilePath).Output()
+	return err
 }
 
 func (fileMover FileMover) writeUndoCommandForFileMove(sourceFilePath string, destFilePath string) error {

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const version = "0.04"
+const version = "0.05"
 
 const flagDedupeLazy = "lazy"
 const flagDedupeEager = "eager"

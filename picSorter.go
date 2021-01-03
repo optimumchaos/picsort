@@ -12,6 +12,7 @@ import (
 
 // PicSorter sorts pictures into a library, while extracting incoming duplicates, unsupported files, etc.
 type PicSorter struct {
+	isDryRun       bool
 	deduper        *Deduper
 	fileMover      *FileMover
 	libDir         string
@@ -22,7 +23,7 @@ type PicSorter struct {
 }
 
 // NewPicSorter creates a new PicSorter with the given Deduper and FileMover.
-func NewPicSorter(deduper *Deduper, fileMover *FileMover, libDir string, duplicateDir string, trashedDir string, unsupportedDir string) *PicSorter {
+func NewPicSorter(isDryRun bool, deduper *Deduper, fileMover *FileMover, libDir string, duplicateDir string, trashedDir string, unsupportedDir string) *PicSorter {
 	result := new(PicSorter)
 	result.deduper = deduper
 	result.fileMover = fileMover
@@ -86,7 +87,9 @@ func (sorter PicSorter) Sort(dirPath string) error {
 
 			err = sorter.deduper.AddFileToIndex(destPath)
 			if err != nil {
-				log.Println("[WARN]", path, "Failed to index file:", err)
+				if !PicSorter.isDryRun {
+					log.Println("[WARN]", path, "Failed to index file:", err)
+				}
 				return nil
 			}
 		}

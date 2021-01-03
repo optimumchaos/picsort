@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const version = "0.05"
+const version = "0.06"
 
 const flagDedupeLazy = "lazy"
 const flagDedupeEager = "eager"
@@ -26,7 +26,7 @@ func main() {
 	incomingDir := flag.String("incomingdir", "", "The directory with incoming photos (unsorted).")
 	dedupe := flag.String("dedupe", flagDedupeLazy, "How to dedupe: "+flagDedupeLazy+" = dedupe lazily per destination directory, "+flagDedupeEager+" = dedupe eagerly across entire library.")
 	rejectDir := flag.String("rejectdir", "", "The root directory to which rejected files will be moved.  Picsort will create subdirectories for duplicates, trashed, and files missing metadata.")
-	isDryrun := flag.Bool("dryrun", false, "Whether to do a dry run.")
+	isDryrun := flag.Bool("dryrun", false, "Do a dry run.")
 	undoScriptFilePath := flag.String("undofile", "undo.sh", "The name of a file in which to write undo commands.")
 	flag.Parse()
 	if len(*libDir) <= 0 ||
@@ -52,7 +52,7 @@ func main() {
 	fileMover := NewFileMover(*isDryrun, tempUndoScriptFilePath)
 	fileIndex := NewFileIndex()
 	deduper := NewDeduper(fileIndex, dedupeDir, *incomingDir, fileMover)
-	sorter := NewPicSorter(deduper, fileMover, *libDir, dedupeDir, trashedDir, unsupportedDir)
+	sorter := NewPicSorter(*isDryrun, deduper, fileMover, *libDir, dedupeDir, trashedDir, unsupportedDir)
 
 	if *dedupe == flagDedupeEager {
 		fileIndex.BuildIndexForDirectory(*libDir)

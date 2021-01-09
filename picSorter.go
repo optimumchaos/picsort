@@ -88,7 +88,7 @@ func (sorter PicSorter) Sort(dirPath string) error {
 
 			err = sorter.deduper.AddFileToIndex(destPath)
 			if err != nil {
-				if !PicSorter.isDryRun {
+				if !sorter.isDryRun {
 					log.Println("[WARN]", path, "Failed to index file:", err)
 				}
 				return nil

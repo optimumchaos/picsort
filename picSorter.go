@@ -25,6 +25,7 @@ type PicSorter struct {
 // NewPicSorter creates a new PicSorter with the given Deduper and FileMover.
 func NewPicSorter(isDryRun bool, deduper *Deduper, fileMover *FileMover, libDir string, duplicateDir string, trashedDir string, unsupportedDir string) *PicSorter {
 	result := new(PicSorter)
+	result.isDryRun = isDryRun
 	result.deduper = deduper
 	result.fileMover = fileMover
 	result.libDir = libDir

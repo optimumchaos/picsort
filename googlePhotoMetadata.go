@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -17,17 +19,23 @@ type GooglePhotoMetadata struct {
 // NewGooglePhotoMetadata creates a new metadata instance from the given picture filename.  The convention is <picname>.json
 func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, error) {
 	result := GooglePhotoMetadata{}
-	metadataFilePath := picFilePath + ".json"
-	file, err := ioutil.ReadFile(metadataFilePath)
-	if err != nil {
-		return nil, metadataFilePath, err
+	metadataFilePaths := getMetadataFilenames(picFilePath)
+	var err error
+	var metadataFilePath string
+	var file []byte
+	for _, metadataFilePath = range metadataFilePaths {
+		file, err = ioutil.ReadFile(metadataFilePath)
+		if err == nil {
+			err = json.Unmarshal(file, &result)
+			if err != nil {
+				return nil, metadataFilePath, err
+			}
+			log.Println("[DEBUG] Using metadata file:", metadataFilePath)
+			log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
+			return &result, metadataFilePath, nil
+		}
 	}
-	err = json.Unmarshal(file, &result)
-	if err != nil {
-		return nil, metadataFilePath, err
-	}
-	log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
-	return &result, metadataFilePath, nil
+	return nil, metadataFilePath, err
 }
 
 // UnmarshalJSON unmarshalls the Google Metadata format into the values of interest.
@@ -55,6 +63,19 @@ func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+func getMetadataFilenames(picFilePath string) []string {
+	ext := filepath.Ext(picFilePath)
+	upperExt := strings.ToUpper(ext)
+	lowerExt := strings.ToLower(ext)
+	noExtension := strings.TrimSuffix(picFilePath, ext)
+
+	possibilities := []string{
+		noExtension + upperExt + ".json",
+		noExtension + lowerExt + ".json",
+	}
+	return possibilities
 }
 
 // example: IMG_3560.JPG.json (latitude and longitude sanitized for the public)

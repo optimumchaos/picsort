@@ -13,7 +13,7 @@ go get github.com/optimumchaos/picsort
 ```
 picsort -incomingdir ~/incoming -libdir ~/Pictures -rejectdir ~/rejects
 ```
-This will recursively scan all files in "~/incoming" for files with exif dates or Google metadata (file with the same name with the ".json" extension.)  It will create a directory structure in "~/Pictures" based on the dates within the incoming media, and move/rename them accordingly.  It will move any duplicates, unrecognized files, or files marked as "trashed" to subdirectories of "~/rejects", retaining the original directory structure from "~/incoming".  Finally, it cleans up the empty "incoming" directory and writes a script to undo everything.
+This will recursively scan all files in `~/incoming` for files with exif dates or Google metadata (file with the same name with the ".json" extension.)  It will create a directory structure in `~/Pictures` based on the dates within the incoming media, and move/rename them accordingly.  It will move any duplicates, unrecognized files, or files marked as "trashed" to subdirectories of `~/rejects`, retaining the original directory structure from `~/incoming`.  Finally, it cleans up the empty "incoming" directory and writes a script to undo everything.
 
 There are a few options:
 * `-dedupe lazy|eager`: By default, Picsort lazily deduplicates prior to moving each incoming file, scanning the destination directory.  This will be effective as long as your entire library is in the Picsort format.  It can also eagerly deduplicate, scanning the entire library upfront.  This will be effective regardless of the library format, but will take more time.
@@ -33,7 +33,7 @@ I wrote this when Google turned off their function to sync between Google Photo 
 
 I could have borrowed one of the bash scripts available on the interwebs to do this sorting, but I wrote my own in Go so that I could add de-duplication.
 
-While this seems to work, it is not done.  As of now, I'm still running this *very carefully*, with backups, and reviewing mysterious edge cases.  (I have files come down from Google that have the same name or that seem corrupt.  And it doesn't seem to extract dates from HEIC and HEIF files, relying on the Google metadata for that.)
+While this seems to work, it is not done.  As of now, I'm still running this *very carefully*, with backups, and reviewing mysterious edge cases.  (I have files come down from Google that have the same filename or that seem corrupt.  And it doesn't seem to extract dates from HEIC and HEIF files, relying on the Google metadata for that.)
 
 I've tested this on Mac OSX (which is case insensitive) and Synology's Linux (which is case sensitive).  I have not tried it on Windows.
 

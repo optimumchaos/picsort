@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -32,6 +30,10 @@ func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, e
 			}
 			log.Println("[DEBUG] Using metadata file:", metadataFilePath)
 			log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
+
+			// TODO
+			// detect & skip files that seem to be duplicated, e.g. "foo.JPG(1).json", just in case.
+
 			return &result, metadataFilePath, nil
 		}
 	}
@@ -66,14 +68,32 @@ func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
 }
 
 func getMetadataFilenames(picFilePath string) []string {
-	ext := filepath.Ext(picFilePath)
-	upperExt := strings.ToUpper(ext)
-	lowerExt := strings.ToLower(ext)
-	noExtension := strings.TrimSuffix(picFilePath, ext)
+	// TODO: This is not safe.  I found this situation:
+	// /folder/fileA.jpg
+	// /folder/fileA.JPG.json
+	// /folder/fileA(1).jpg
+	// /folder/fileA.JPG(1).json
+	// You would expect "fileA.jpg" to match "fileA.JPG.json", and this change will allow that.
+	// This change does not address the (1) problem.  I was going to deal with that later...
+	// But this is not the case.  I found an instance where "fileA.jpg" corresponds to "fileA.JPG(1).json".
+	// Google did not maintain order while exporting the files to disk.
+	// I avoided a bad sort in this case only because of the filename extension case difference.  I used the file's metadata.
+	// If I'd had this case fix (commented out below), I would have preferred the metadata and exported with the wrong date.
+	// Removing this for now.  Ideas:
+	// 1. prefer embedded dates when present
+	// 2. only use metadata if the embedded dates and metadata agree.  (This would be a problem when the file has no metadata.)
+	// 3. only use metadata if there is no (#) situation, implying duplicate files.
+	// TODO!!!
+
+	// ext := filepath.Ext(picFilePath)
+	// upperExt := strings.ToUpper(ext)
+	// lowerExt := strings.ToLower(ext)
+	// noExtension := strings.TrimSuffix(picFilePath, ext)
 
 	possibilities := []string{
-		noExtension + upperExt + ".json",
-		noExtension + lowerExt + ".json",
+		//		noExtension + upperExt + ".json",
+		//		noExtension + lowerExt + ".json",
+		picFilePath + ".json",
 	}
 	return possibilities
 }

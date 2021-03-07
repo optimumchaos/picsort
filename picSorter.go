@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/rwcarlsen/goexif/exif"
@@ -47,6 +48,12 @@ func (sorter PicSorter) Sort(dirPath string) error {
 			return err
 		}
 		if !info.IsDir() {
+			if isUnsupportedFile(path) {
+				log.Println("[INFO] Skipping unsupported file", path)
+				unsupportedPaths = append(unsupportedPaths, path)
+				return nil
+			}
+
 			googleMetadata := sorter.getGooglePhotoMetadata(path)
 			if googleMetadata != nil && googleMetadata.IsTrashed {
 				err = sorter.handleTrashed(path, dirPath)
@@ -188,4 +195,12 @@ func (sorter PicSorter) deriveNewPathFromTimestamp(filePath string, timestamp ti
 	log.Println("[DEBUG] Derived path", result, "from timestamp", timestamp.String(), "localized to", localTimestamp.String())
 
 	return result
+}
+
+func isUnsupportedFile(picFilePath string) bool {
+	ext := filepath.Ext(picFilePath)
+	regex := regexp.MustCompile(`\.[jJ][sS][oO][nN]$`) // .json .JSON .Json ...
+	matches := regex.Find([]byte(ext))
+
+	return (matches != nil)
 }

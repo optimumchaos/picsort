@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"path/filepath"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,26 +19,29 @@ type GooglePhotoMetadata struct {
 
 // NewGooglePhotoMetadata creates a new metadata instance from the given picture filename.  The convention is <picname>.json
 func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, error) {
+	log.Println("[DEBUG] Looking for metadata for", picFilePath)
 	result := GooglePhotoMetadata{}
 	metadataFilePaths := getMetadataFilenames(picFilePath)
-	var err error
-	var metadataFilePath string
-	var file []byte
-	for _, metadataFilePath = range metadataFilePaths {
-		file, err = ioutil.ReadFile(metadataFilePath)
-		if err == nil {
-			err = json.Unmarshal(file, &result)
-			if err != nil {
-				return nil, metadataFilePath, err
+	var err error = nil
+	var metadataFilePath string = "(no Google metadata file path found)"
+	if isMetadataUnamgibuous(picFilePath, metadataFilePaths) {
+		var file []byte
+		for _, metadataFilePath = range metadataFilePaths {
+			file, err = ioutil.ReadFile(metadataFilePath)
+			if err == nil {
+				err = json.Unmarshal(file, &result)
+				if err != nil {
+					log.Println("[WARN] Failed to unmarshal Google metadata file:", metadataFilePath, err)
+					return nil, metadataFilePath, err
+				}
+				log.Println("[DEBUG] Using Google metadata file:", metadataFilePath)
+				log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed, "PhotoTakenTime:", result.PhotoTakenTime)
+
+				return &result, metadataFilePath, nil
 			}
-			log.Println("[DEBUG] Using metadata file:", metadataFilePath)
-			log.Println("[DEBUG]", picFilePath, "IsTrashed:", result.IsTrashed)
-
-			// TODO
-			// detect & skip files that seem to be duplicated, e.g. "foo.JPG(1).json", just in case.
-
-			return &result, metadataFilePath, nil
 		}
+	} else {
+		log.Println("[WARN] Skipping Google metadata for", picFilePath, "because it could not be matched to the file with full confidence.")
 	}
 	return nil, metadataFilePath, err
 }
@@ -68,34 +74,67 @@ func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
 }
 
 func getMetadataFilenames(picFilePath string) []string {
-	// TODO: This is not safe.  I found this situation:
+	ext := filepath.Ext(picFilePath)
+	upperExt := strings.ToUpper(ext)
+	lowerExt := strings.ToLower(ext)
+	noExtension := strings.TrimSuffix(picFilePath, ext)
+
+	possibilities := []string{
+		noExtension + upperExt + ".json",
+		noExtension + lowerExt + ".json",
+	}
+	return possibilities
+}
+
+func isMetadataUnamgibuous(picFilePath string, filenames []string) bool {
+	// Situation:
 	// /folder/fileA.jpg
 	// /folder/fileA.JPG.json
 	// /folder/fileA(1).jpg
 	// /folder/fileA.JPG(1).json
-	// You would expect "fileA.jpg" to match "fileA.JPG.json", and this change will allow that.
-	// This change does not address the (1) problem.  I was going to deal with that later...
-	// But this is not the case.  I found an instance where "fileA.jpg" corresponds to "fileA.JPG(1).json".
+	// I found an instance where "fileA.jpg" corresponds to "fileA.JPG(1).json".
 	// Google did not maintain order while exporting the files to disk.
-	// I avoided a bad sort in this case only because of the filename extension case difference.  I used the file's metadata.
-	// If I'd had this case fix (commented out below), I would have preferred the metadata and exported with the wrong date.
-	// Removing this for now.  Ideas:
-	// 1. prefer embedded dates when present
-	// 2. only use metadata if the embedded dates and metadata agree.  (This would be a problem when the file has no metadata.)
-	// 3. only use metadata if there is no (#) situation, implying duplicate files.
-	// TODO!!!
+	// Consider the metadata unambiguous if there is no indication of duplicate picfile or metadata filenames.
 
-	// ext := filepath.Ext(picFilePath)
-	// upperExt := strings.ToUpper(ext)
-	// lowerExt := strings.ToLower(ext)
-	// noExtension := strings.TrimSuffix(picFilePath, ext)
-
-	possibilities := []string{
-		//		noExtension + upperExt + ".json",
-		//		noExtension + lowerExt + ".json",
-		picFilePath + ".json",
+	log.Println("[DEBUG] Checking pic filename for duplicates:", picFilePath)
+	if isFileDuplicated(picFilePath) {
+		log.Println("[DEBUG] Treating metadata as ambiguous because picture file uses a potentially duplicated filename.")
+		return false
 	}
-	return possibilities
+	for _, filename := range filenames {
+		log.Println("[DEBUG] Checking potential metadata filename for duplicates:", filename)
+		if isFileDuplicated(filename) {
+			log.Println("[DEBUG] Treating metadata as ambiguous because metadata file uses a potentially duplicated filename.")
+			return false
+		}
+	}
+	return true
+}
+
+func isFileDuplicated(filePath string) bool {
+	regex := regexp.MustCompile(`(\([\d]+\))?(` + filepath.Ext(filePath) + "$)") // foo(1).png or foo.png
+	filePattern1 := string(regex.ReplaceAll([]byte(filePath), []byte("(*)$2")))  // foo(1).png -> foo(*).png
+	fileCount1, err := countFiles(filePattern1)
+	if err != nil {
+		log.Println("[WARN] Assuming file duplication due to failure to list files for pattern:", filePattern1)
+		return true
+	}
+	filePattern2 := string(regex.ReplaceAll([]byte(filePath), []byte("$2"))) // foo(1).png -> foo.png
+	fileCount2, err := countFiles(filePattern2)
+	if err != nil {
+		log.Println("[WARN] Assuming file duplication due to failure to list files for pattern:", filePattern2)
+		return true
+	}
+	return (fileCount1 + fileCount2) > 1
+}
+
+func countFiles(filePattern string) (int, error) {
+	matches, err := filepath.Glob(filePattern)
+	if err != nil {
+		return 0, err
+	}
+	log.Println("[TRACE] Checked files for pattern", filePattern, matches)
+	return len(matches), nil
 }
 
 // example: IMG_3560.JPG.json (latitude and longitude sanitized for the public)

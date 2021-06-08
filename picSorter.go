@@ -13,18 +13,19 @@ import (
 
 // PicSorter sorts pictures into a library, while extracting incoming duplicates, unsupported files, etc.
 type PicSorter struct {
-	isDryRun       bool
-	deduper        *Deduper
-	fileMover      *FileMover
-	libDir         string
-	duplicateDir   string
-	trashedDir     string
-	unsupportedDir string
-	local          *time.Location
+	isDryRun        bool
+	deduper         *Deduper
+	fileMover       *FileMover
+	libDir          string
+	duplicateDir    string
+	trashedDir      string
+	unsupportedDir  string
+	matchLivePhotos bool // e.g. match video IMG_7299.MP4 as live photo to metadata from IMG_7299.HEIC.json
+	local           *time.Location
 }
 
 // NewPicSorter creates a new PicSorter with the given Deduper and FileMover.
-func NewPicSorter(isDryRun bool, deduper *Deduper, fileMover *FileMover, libDir string, duplicateDir string, trashedDir string, unsupportedDir string) *PicSorter {
+func NewPicSorter(isDryRun bool, deduper *Deduper, fileMover *FileMover, libDir string, duplicateDir string, trashedDir string, unsupportedDir string, matchLivePhotos bool) *PicSorter {
 	result := new(PicSorter)
 	result.isDryRun = isDryRun
 	result.deduper = deduper
@@ -33,6 +34,7 @@ func NewPicSorter(isDryRun bool, deduper *Deduper, fileMover *FileMover, libDir 
 	result.duplicateDir = duplicateDir
 	result.trashedDir = trashedDir
 	result.unsupportedDir = unsupportedDir
+	result.matchLivePhotos = matchLivePhotos
 	// Workaround to get "local" location. "Time.Local()" does not pick the right offset for DST state.
 	zoneName, offset := time.Now().Zone()
 	result.local = time.FixedZone(zoneName, offset)
@@ -117,7 +119,7 @@ func (sorter PicSorter) Sort(dirPath string) error {
 }
 
 func (sorter PicSorter) getGooglePhotoMetadata(filePath string) *GooglePhotoMetadata {
-	metadata, _, err := NewGooglePhotoMetadata(filePath)
+	metadata, _, err := NewGooglePhotoMetadata(filePath, sorter.matchLivePhotos)
 	if err != nil {
 		// probably no metadata
 		return nil

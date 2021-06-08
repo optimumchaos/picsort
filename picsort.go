@@ -28,6 +28,7 @@ func main() {
 	rejectDir := flag.String("rejectdir", "", "The root directory to which rejected files will be moved.  Picsort will create subdirectories for duplicates, trashed, and files missing metadata.")
 	isDryrun := flag.Bool("dryrun", false, "Do a dry run.")
 	undoScriptFilePath := flag.String("undofile", "undo.sh", "The name of a file in which to write undo commands.")
+	matchLivePhotos := flag.Bool("matchLivePhotos", true, "Match videos to metadata as if they are live photos (e.g. match video IMG_7299.MP4 to metadata from IMG_7299.HEIC.json)")
 	flag.Parse()
 	if len(*libDir) <= 0 ||
 		len(*incomingDir) <= 0 ||
@@ -43,6 +44,9 @@ func main() {
 	if *isDryrun {
 		log.Println("[INFO]", "Dry run only")
 	}
+	if *matchLivePhotos {
+		log.Println("[INFO]", "Matching live photos")
+	}
 
 	tempUndoScriptFilePath := *undoScriptFilePath + ".temp"
 	dedupeDir := filepath.Join(*rejectDir, dedupeSubDir)
@@ -52,7 +56,7 @@ func main() {
 	fileMover := NewFileMover(*isDryrun, tempUndoScriptFilePath)
 	fileIndex := NewFileIndex()
 	deduper := NewDeduper(fileIndex, dedupeDir, *incomingDir, fileMover)
-	sorter := NewPicSorter(*isDryrun, deduper, fileMover, *libDir, dedupeDir, trashedDir, unsupportedDir)
+	sorter := NewPicSorter(*isDryrun, deduper, fileMover, *libDir, dedupeDir, trashedDir, unsupportedDir, *matchLivePhotos)
 
 	if *dedupe == flagDedupeEager {
 		fileIndex.BuildIndexForDirectory(*libDir)

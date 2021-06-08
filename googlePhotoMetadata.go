@@ -18,10 +18,10 @@ type GooglePhotoMetadata struct {
 }
 
 // NewGooglePhotoMetadata creates a new metadata instance from the given picture filename.  The convention is <picname>.json
-func NewGooglePhotoMetadata(picFilePath string) (*GooglePhotoMetadata, string, error) {
+func NewGooglePhotoMetadata(picFilePath string, matchLivePhotos bool) (*GooglePhotoMetadata, string, error) {
 	log.Println("[DEBUG] Looking for metadata for", picFilePath)
 	result := GooglePhotoMetadata{}
-	metadataFilePaths := getMetadataFilenames(picFilePath)
+	metadataFilePaths := getMetadataFilenames(picFilePath, matchLivePhotos)
 	var err error = nil
 	var metadataFilePath string = "(no Google metadata file path found)"
 	if isMetadataUnamgibuous(picFilePath, metadataFilePaths) {
@@ -73,7 +73,7 @@ func (metadata *GooglePhotoMetadata) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func getMetadataFilenames(picFilePath string) []string {
+func getMetadataFilenames(picFilePath string, matchLivePhotos bool) []string {
 	ext := filepath.Ext(picFilePath)
 	upperExt := strings.ToUpper(ext)
 	lowerExt := strings.ToLower(ext)
@@ -82,6 +82,12 @@ func getMetadataFilenames(picFilePath string) []string {
 	possibilities := []string{
 		noExtension + upperExt + ".json",
 		noExtension + lowerExt + ".json",
+	}
+	if matchLivePhotos {
+		possibilities = append(possibilities,
+			noExtension+".HEIC.json",
+			noExtension+".heic.json",
+		)
 	}
 	return possibilities
 }

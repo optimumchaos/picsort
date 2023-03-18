@@ -99,7 +99,7 @@ func isMetadataUnamgibuous(picFilePath string, filenames []string) bool {
 	// /folder/fileA(1).jpg
 	// /folder/fileA.JPG(1).json
 	// I found an instance where "fileA.jpg" corresponds to "fileA.JPG(1).json".
-	// Google did not maintain order while exporting the files to disk.
+	// Google did not maintain order while exporting the files to disk?
 	// Consider the metadata unambiguous if there is no indication of duplicate picfile or metadata filenames.
 
 	log.Println("[DEBUG] Checking pic filename for duplicates:", picFilePath)

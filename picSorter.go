@@ -50,14 +50,15 @@ func (sorter PicSorter) Sort(dirPath string) error {
 			return err
 		}
 		if !info.IsDir() {
-			if isUnsupportedFile(path) {
-				log.Println("[INFO] Skipping unsupported file", path)
+			if isUnsupportedFileByExtension(path) {
+				log.Println("[INFO] Treating file as 'unsupported' based on its extension", path)
 				unsupportedPaths = append(unsupportedPaths, path)
 				return nil
 			}
 
 			googleMetadata := sorter.getGooglePhotoMetadata(path)
 			if googleMetadata != nil && googleMetadata.IsTrashed {
+				log.Println("[INFO] Treating file as 'trashed' based on the metadata", path)
 				err = sorter.handleTrashed(path, dirPath)
 				if err != nil {
 					log.Println("[WARN]", path, "Failed to check/handle trashed:", err)
@@ -73,8 +74,13 @@ func (sorter PicSorter) Sort(dirPath string) error {
 				if err != nil {
 					// The file is unsupported.  Nevertheless, check for duplicates.
 					// This is realy only useful with eager deduping, but it could save us from having to care about why the file is unsupported.
-					isDuplicate, _ := sorter.checkAndHandleIndexedDupes(path, dirPath)
-					if !isDuplicate {
+					isDuplicate, err := sorter.checkAndHandleIndexedDupes(path, dirPath)
+					if err != nil {
+						log.Println("[WARN]", path, "Failed to check/handle indexed duplicates:", err)
+					} else if isDuplicate {
+						log.Println("[INFO] Treating file as 'duplicate' (unsupported)", path)
+					} else {
+						log.Println("[INFO] Treating file as 'unsupported' due to lack of metadata (file or Google)", path)
 						unsupportedPaths = append(unsupportedPaths, path)
 					}
 					return nil
@@ -86,9 +92,11 @@ func (sorter PicSorter) Sort(dirPath string) error {
 				log.Println("[WARN]", path, "Failed to check/handle duplicates:", err)
 				return nil
 			} else if isDuplicate {
+				log.Println("[INFO] Treating file as 'duplicate'", path)
 				return nil
 			}
 
+			log.Println("[INFO] Relocating file", path)
 			destPath, err := sorter.fileMover.MoveFileWithRename(path, newPath)
 			if err != nil {
 				log.Println("[WARN]", path, "Failed to sort file:", err)
@@ -199,7 +207,7 @@ func (sorter PicSorter) deriveNewPathFromTimestamp(filePath string, timestamp ti
 	return result
 }
 
-func isUnsupportedFile(picFilePath string) bool {
+func isUnsupportedFileByExtension(picFilePath string) bool {
 	ext := filepath.Ext(picFilePath)
 	regex := regexp.MustCompile(`\.[jJ][sS][oO][nN]$`) // .json .JSON .Json ...
 	matches := regex.Find([]byte(ext))

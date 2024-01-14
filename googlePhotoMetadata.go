@@ -82,6 +82,7 @@ func getMetadataFilenames(picFilePath string, matchLivePhotos bool) []string {
 	possibilities := []string{
 		noExtension + upperExt + ".json",
 		noExtension + lowerExt + ".json",
+		noExtension + ".json",
 	}
 	if matchLivePhotos {
 		possibilities = append(possibilities,

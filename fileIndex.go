@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // FileIndex indexes files by hash and path for directories.
@@ -79,12 +80,20 @@ func deriveHashFromFile(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	fileSizeExtension := ""
+	fileInfo, err2 := file.Stat()
+	if err2 != nil {
+		log.Println("[WARN]", "Unable to read file size:", err)
+	} else {
+		fileSizeExtension = "-" + strconv.FormatInt(fileInfo.Size(), 10)
+	}
+
 	defer file.Close()
 	hash := md5.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
 	hashInBytes := hash.Sum(nil)[:16]
-	result := hex.EncodeToString(hashInBytes)
+	result := hex.EncodeToString(hashInBytes) + fileSizeExtension
 	return result, nil
 }
